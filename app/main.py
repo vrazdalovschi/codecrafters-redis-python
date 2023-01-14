@@ -10,9 +10,11 @@ def main():
     #
     server_socket = socket.create_server(("localhost", 6379), reuse_port=True)
     conn, _ = server_socket.accept()  # wait for client
-    # accept soccket and send HELLO
+    while True:
+        data = conn.recv(1024)
+        if data:
+            conn.sendall(b"+PONG\r\n")
 
-    conn.send(b"+PONG\r\n")
     conn.close()
 
 
