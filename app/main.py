@@ -4,6 +4,8 @@ import _thread
 
 from app.resp_decoder import RESPDecoder
 
+memory = dict()
+
 
 def handle_client(client_connection):
     while True:
@@ -13,6 +15,11 @@ def handle_client(client_connection):
                 client_connection.send(b"+PONG\r\n")
             elif command == b"echo":
                 client_connection.send(b"$%d\r\n%b\r\n" % (len(args[0]), args[0]))
+            elif command == b"set":
+                memory[args[0]] = args[1]
+                client_connection.send(b"+OK\r\n")
+            elif command == b"get":
+                client_connection.send(b"$%d\r\n%b\r\n" % (len(memory[args[0]]), memory[args[0]]))
             else:
                 client_connection.send(b"-ERR unknown command\r\n")
         except ConnectionError:
