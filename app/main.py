@@ -2,46 +2,21 @@
 import socket
 import _thread
 
-
-class UnsupportedCommandError(Exception):
-    pass
+from app.resp_decoder import RESPDecoder
 
 
-def handle_client(conn):
+def handle_client(client_connection):
     while True:
-        data = conn.recv(2048)
-        command, args = parse_command(data)
-        if command == 'ping':
-            conn.sendall(b"+PONG\r\n")
-        elif command == 'echo':
-            conn.sendall(b"+%b\r\n" % args[0])
-        else:
-            raise UnsupportedCommandError()
-
-
-def parse_command(data: bytes) -> (str, list):
-    print("parse_command", data)
-    if data[0:1] != b"*":
-        raise UnsupportedCommandError()
-
-    up_to = data.find(b'\r\n')
-    array_size = int(data[1:up_to])
-    command_size_pos = data.find(b'$') + 1
-    command_size_post2 = data.find(b'\r\n', command_size_pos)
-    command_size = int(data[command_size_pos:command_size_post2])
-    command = data[command_size_post2 + 2: command_size_post2 + 2 + command_size]
-
-    if array_size == 1:
-        return command.decode('utf-8'), []
-    elif array_size == 2:
-        args_size_from_pos = data.find(b'$', command_size_post2 + 2 + command_size) + 1
-        args_size_upto_pos = data.find(b'\r\n', args_size_from_pos)
-        args_size = int(data[args_size_from_pos:args_size_upto_pos])
-        argg = data[args_size_upto_pos + 2: args_size_upto_pos + 2 + args_size]
-
-        return command.decode('utf-8'), [argg]
-
-    raise UnsupportedCommandError()
+        try:
+            command, *args = RESPDecoder(client_connection).decode()
+            if command == b"ping":
+                client_connection.send(b"+PONG\r\n")
+            elif command == b"echo":
+                client_connection.send(b"$%d\r\n%b\r\n" % (len(args[0]), args[0]))
+            else:
+                client_connection.send(b"-ERR unknown command\r\n")
+        except ConnectionError:
+            break  # Stop serving if the client connection is closed
 
 
 def main():
